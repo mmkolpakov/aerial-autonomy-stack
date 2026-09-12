@@ -68,8 +68,12 @@ wsl ~                               # Access WSL from Windows PowerShell
 
 nvidia-smi                          # From WSL, check NVIDIA driver
 
+ls /dev/dri                         # Must list card0 and renderD128, `sim_run.sh` passes /dev/dri to the containers
+                                    # If it is missing, $ sudo modprobe vgem && echo vgem | sudo tee /etc/modules-load.d/vgem.conf
+
 sudo apt update && sudo apt install -y mesa-utils
-glxinfo -B                          # (optional) Check OpenGL renderer, to force GPU rendering, use $ echo 'export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA' >> ~/.bashrc && source ~/.bashrc
+glxinfo -B                          # (optional) Check OpenGL renderer, `llvmpipe` is software rendering
+                                    # On a multi-GPU host, pick the adapter with $ export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA
 ```
 
 ## Install Docker Engine inside WSL
