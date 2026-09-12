@@ -147,6 +147,19 @@ class AASEnv(gym.Env):
         #
         env_display = os.environ.get('DISPLAY', '')
         env_xdg = os.environ.get('XDG_RUNTIME_DIR', '')
+        # WSL-specific options, see sim_run.sh
+        try:
+            is_wsl = 'microsoft' in open('/proc/version').read().lower()
+        except OSError:
+            is_wsl = False
+        wsl_environment = {
+            "WAYLAND_DISPLAY": os.environ.get('WAYLAND_DISPLAY', ''),
+            "PULSE_SERVER": os.environ.get('PULSE_SERVER', ''),
+            "MESA_D3D12_DEFAULT_ADAPTER_NAME": "NVIDIA",
+            "GALLIUM_DRIVER": os.environ.get('GALLIUM_DRIVER', 'd3d12'), # Without it Mesa falls back to llvmpipe, the WSL render node is vgem
+            "LD_LIBRARY_PATH": "/usr/lib/wsl/lib",
+            "LIBGL_ALWAYS_SOFTWARE": "0"
+        } if is_wsl and gpu else {}
         gpu_requests = [
             DeviceRequest(count=-1, capabilities=[['gpu']]) # Replaces "--gpus all"
         ] if gpu else []
@@ -156,6 +169,8 @@ class AASEnv(gym.Env):
             '/tmp/.X11-unix': {'bind': '/tmp/.X11-unix', 'mode': 'rw'}, # Replaces "--volume /tmp/.X11-unix:/tmp/.X11-unix:rw"
             self.ZMQ_IPC_SOCKET_DIR: {'bind': self.ZMQ_IPC_SOCKET_DIR, 'mode': 'rw'} # For ZMQ IPC sockets
         }
+        if wsl_environment:
+            volume_binds['/usr/lib/wsl'] = {'bind': '/usr/lib/wsl', 'mode': 'ro'} # Replaces "--volume /usr/lib/wsl:/usr/lib/wsl"
         device_binds = [
             '/dev/dri:/dev/dri:rwm' # Replaces "--device /dev/dri"
         ] if gpu else []
@@ -178,6 +193,7 @@ class AASEnv(gym.Env):
                 **({"NVIDIA_DRIVER_CAPABILITIES": "all",
                     "__NV_PRIME_RENDER_OFFLOAD": "1",
                     "__GLX_VENDOR_LIBRARY_NAME": "nvidia"} if gpu else {}),
+                **wsl_environment,
                 "XDG_RUNTIME_DIR": env_xdg,
                 "GST_DEBUG": "3",
                 "AUTOPILOT": self.AUTOPILOT,
@@ -240,6 +256,7 @@ class AASEnv(gym.Env):
                     **({"NVIDIA_DRIVER_CAPABILITIES": "all",
                         "__NV_PRIME_RENDER_OFFLOAD": "1",
                         "__GLX_VENDOR_LIBRARY_NAME": "nvidia"} if gpu else {}),
+                    **wsl_environment,
                     "XDG_RUNTIME_DIR": env_xdg,
                     "GST_DEBUG": "3",
                     "AUTOPILOT": self.AUTOPILOT,
